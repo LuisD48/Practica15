@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Administración de Préstamos | Facultad de Ingeniería Mochis</title>
+</head>
+<body>
+
+    <div>
+        <div>
+            <h1>FACULTAD DE INGENIERÍA MOCHIS</h1>
+            <h2>Coordinación de Centros de Cómputo y Red Escolar</h2>
+            <h3>UNIVERSIDAD AUTÓNOMA DE SINALOA</h3>
+            
+            <h2>SISTEMA ADMINISTRADOR DE BITÁCORA</h2>
+            <p>Préstamo de Equipos</p>
+        </div>
+        <hr>
+
+        <div>
+            <div>
+                <h3>Registrar Nuevo Préstamo</h3>
+                <form id="prestamoForm">
+                    <div>
+                        <label>Nombre completo:</label><br>
+                        <input type="text" id="nombre" required>
+                    </div>
+                    <br>
+                    
+                    <div>
+                        <label>Carrera:</label>
+                        <select id="carrera">
+                            <option value="C">C</option>
+                            <option value="G">G</option>
+                            <option value="S">S</option>
+                            <option value="IP">IP</option>
+                            <option value="IN">IN</option>
+                        </select>
+                        
+                        &nbsp;&nbsp;&nbsp;
+                        
+                        <label>Grupo:</label>
+                        <input type="text" id="grupo" required size="5">
+                    </div>
+                    <br>
+
+                    <div>
+                        <label>Tipo de Usuario:</label><br>
+                        <label>
+                            <input type="radio" name="tipoUsuario" value="A" checked>
+                            Alumno (A)
+                        </label>
+                        &nbsp;&nbsp;
+                        <label>
+                            <input type="radio" name="tipoUsuario" value="P">
+                            Profesor (P)
+                        </label>
+                    </div>
+                    <br>
+
+                    <div>
+                        <label>Equipo a prestar:</label><br>
+                        <input type="text" id="equipo" placeholder="Ej. Laptop Dell 04..." required size="40">
+                    </div>
+                    <br>
+
+                    <button type="submit">
+                        Autorizar Préstamo
+                    </button>
+                </form>
+            </div>
+
+            <br><hr><br>
+
+            <div>
+                <h3>Equipos en Préstamo / Historial</h3>
+                <table border="1" cellpadding="5" cellspacing="0" width="100%">
+                    <thead>
+                        <tr>
+                            <th>Usuario</th>
+                            <th>Perfil</th>
+                            <th>Equipo</th>
+                            <th>Hr. Préstamo</th>
+                            <th>Hr. Entrega</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tablaBitacora">
+                        </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Array para administrar el estado de los préstamos en memoria
+        let bitacora = [];
+
+        const form = document.getElementById('prestamoForm');
+        const tabla = document.getElementById('tablaBitacora');
+
+        // Función para obtener fecha y hora actual formateada
+        function obtenerFechaHoraActual() {
+            const ahora = new Date();
+            return ahora.toLocaleString('es-MX', { 
+                day: '2-digit', month: '2-digit', year: 'numeric',
+                hour: '2-digit', minute: '2-digit'
+            });
+        }
+
+        // Manejo del evento de registro (Create)
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const nuevoPrestamo = {
+                id: Date.now(),
+                nombre: document.getElementById('nombre').value,
+                carrera: document.getElementById('carrera').value,
+                grupo: document.getElementById('grupo').value,
+                tipoUsuario: document.querySelector('input[name="tipoUsuario"]:checked').value,
+                equipo: document.getElementById('equipo').value,
+                horaPrestamo: obtenerFechaHoraActual(),
+                horaEntrega: null, // Null indica que sigue en préstamo
+                estado: 'Activo'
+            };
+
+            bitacora.push(nuevoPrestamo);
+            form.reset();
+            renderizarTabla();
+        });
+
+        // Función para registrar la devolución (Update)
+        function registrarEntrega(id) {
+            const index = bitacora.findIndex(p => p.id === id);
+            if (index !== -1) {
+                bitacora[index].horaEntrega = obtenerFechaHoraActual();
+                bitacora[index].estado = 'Devuelto';
+                renderizarTabla();
+            }
+        }
+
+        // Función para pintar los datos (Read)
+        function renderizarTabla() {
+            tabla.innerHTML = ''; // Limpiar tabla
+
+            if(bitacora.length === 0) {
+                tabla.innerHTML = '<tr><td colspan="6" align="center">No hay préstamos registrados.</td></tr>';
+                return;
+            }
+
+            // Ordenar para ver los activos primero
+            const bitacoraOrdenada = [...bitacora].sort((a, b) => {
+                if(a.estado === 'Activo' && b.estado === 'Devuelto') return -1;
+                if(a.estado === 'Devuelto' && b.estado === 'Activo') return 1;
+                return b.id - a.id; // Más recientes primero
+            });
+
+            bitacoraOrdenada.forEach(item => {
+                const tr = document.createElement('tr');
+                
+                tr.innerHTML = `
+                    <td>${item.nombre}</td>
+                    <td align="center">
+                        ${item.carrera} - Gpo: ${item.grupo} <br>
+                        <strong>${item.tipoUsuario === 'A' ? 'Alumno' : 'Profesor'}</strong>
+                    </td>
+                    <td>${item.equipo}</td>
+                    <td align="center">${item.horaPrestamo}</td>
+                    <td align="center">
+                        ${item.horaEntrega ? item.horaEntrega : '<i>En uso...</i>'}
+                    </td>
+                    <td align="center">
+                        ${item.estado === 'Activo' 
+                            ? `<button onclick="registrarEntrega(${item.id})">Recibir Equipo</button>` 
+                            : `<span>✓ Completado</span>`
+                        }
+                    </td>
+                `;
+                tabla.appendChild(tr);
+            });
+        }
+
+        // Render inicial
+        renderizarTabla();
+    </script>
+</body>
+</html>
